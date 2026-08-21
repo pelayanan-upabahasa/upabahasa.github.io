@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Kiosk Layanan UPA Bahasa UNSIL</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap">
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          primary: "#00236f",
+          "primary-container": "#1e3a8a",
+          "on-primary": "#ffffff",
+          "on-primary-container": "#dce1ff",
+          surface: "#f8f9fc",
+          "surface-container": "#eeedf4",
+          "surface-container-low": "#f4f3fa",
+          "surface-container-high": "#e9e7ef",
+          "surface-container-lowest": "#ffffff",
+          "on-surface": "#1a1b21",
+          "on-surface-variant": "#444651",
+          "outline-variant": "#c5c5d3",
+          secondary: "#5c5f61",
+          "secondary-container": "#e0e3e5",
+          accent: "#f39461",
+          error: "#ba1a1a"
+        },
+        fontFamily: { sans: ["Inter", "sans-serif"] }
+      }
+    }
+  };
+</script>
+<style>
+  * { 
+    -webkit-tap-highlight-color: transparent; 
+    box-sizing: border-box; 
+  }
+
+  html, body { 
+    margin: 0; 
+    padding: 0; 
+    width: 100%; 
+    height: 100%; 
+    min-height: 100vh; 
+    overflow: hidden;
+    font-family: 'Inter', sans-serif;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  html::-webkit-scrollbar, body::-webkit-scrollbar {
+    display: none;
+  }
+
+  .material-symbols-outlined { 
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; 
+  }
+  
+  /* ===== SCREEN CONTAINER ===== */
+  .screen { 
+    position: fixed; 
+    inset: 0; 
+    width: 100vw; 
+    height: 100vh; 
+    display: none; 
+    opacity: 0;
+  }
+  
+  .screen.active { 
+    display: flex; 
+    animation: screenFadeIn 0.25s ease-out forwards;
+  }
+
+  @keyframes screenFadeIn {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+  }
+
+  /* Logo */
+  .logo-header { height: 2.35rem; width: auto; object-fit: contain; }
+  @media (min-width: 768px) { .logo-header { height: 4.5rem; } }
+  .logo-idle { height: 4rem; width: auto; object-fit: contain; filter: brightness(0) invert(1); opacity: 0.95; }
+  @media (min-width: 768px) { .logo-idle { height: 5.5rem; } }
+
+  .glass-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 20px -2px rgba(0, 35, 111, 0.08);
+  }
+
+  .service-card {
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    box-shadow: 0 2px 8px -2px rgba(0, 35, 111, 0.06);
+    position: relative;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+  }
+
+  .service-card .card-icon-wrap {
+    background: #00236f;
+    transition: background-color 0.15s ease;
+  }
+
+  @media (min-width: 768px) {
+    .service-card:hover {
+      transform: translateY(-4px);
+      border-color: #00236f;
+      box-shadow: 0 12px 24px -6px rgba(0, 35, 111, 0.15);
+    }
+    .service-card:hover .card-icon-wrap {
+      background: #1e3a8a;
+    }
+  }
+
+  .service-card:active { transform: scale(0.98); }
+  .touch-input { height: 3.5rem; }
+  @media (min-width: 768px) { .touch-input { height: 4rem; } }
+
+  .idle-bg { 
+    position: absolute; 
+    inset: 0; 
+    background-size: cover; 
+    background-position: center; 
+    transition: opacity 1.2s ease-in-out; 
+  }
+  .idle-bg.show { opacity: 1; z-index: 1; }
+  .idle-bg:not(.show) { opacity: 0; z-index: 0; }
+  
+  .idle-overlay {
+    position: absolute; 
+    inset: 0; 
+    z-index: 2;
+    background: rgba(0, 15, 50, 0.78);
+  }
+
+  #particlesCanvas { 
+    position: absolute; 
+    inset: 0; 
+    width: 100%; 
+    height: 100%; 
+    z-index: 3; 
+    pointer-events: none; 
+  }
+  
+  .loading-bar-track { width: 260px; height: 8px; border-radius: 6px; background: rgba(255,255,255,0.3); margin-top: 24px; overflow: hidden; }
+  .loading-bar-fill { height: 100%; width: 0%; background: #fff; border-radius: 6px; }
+
+  .fade-blur-anim {
+    transition: opacity 0.6s ease-out;
+  }
+  .fade-blur-anim.state-visible { opacity: 1; }
+  .fade-blur-anim.state-hidden { opacity: 0; }
+
+  .badge-glow { background: #f39461; }
+
+  @keyframes marqueeSeamless {
+    0% { transform: translate3d(0, 0, 0); }
+    100% { transform: translate3d(-100%, 0, 0); }
+  }
+
+  .marquee-wrapper {
+    display: flex; 
+    overflow: hidden; 
+    width: 100%; 
+    user-select: none;
+  }
+
+  .marquee-group {
+    flex-shrink: 0; 
+    display: flex; 
+    align-items: center; 
+    justify-content: space-around; 
+    min-width: 100%;
+    animation: marqueeSeamless 35s linear infinite; 
+    will-change: transform;
+  }
+
+  /* ===== FIXED HEADER & FOOTER DENGAN INNER SCROLL AREA ===== */
+  @media (max-width: 767px) {
+    #selectScreen, #formScreen {
+      position: fixed !important;
+      inset: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      padding-top: 4rem !important;    /* Tinggi Header 16 (4rem) */
+      padding-bottom: 2.75rem !important; /* Tinggi Footer 11 (2.75rem) */
+      overflow: hidden !important;
+    }
+    
+    /* Area scroll internal khusus konten tengah agar header & footer terkunci */
+    #selectScreen main, #formScreen main {
+      overflow-y: auto !important;
+      overflow-x: hidden !important;
+      height: 100% !important;
+      flex: 1 1 0% !important;
+      -webkit-overflow-scrolling: touch;
+      padding-top: 1rem !important;
+      padding-bottom: 1.5rem !important;
+      scrollbar-width: none;
+    }
+    #selectScreen main::-webkit-scrollbar, #formScreen main::-webkit-scrollbar {
+      display: none;
+    }
+    
+    #idleScreen { display: none !important; }
+  }
+</style>
+</head>
+<body class="bg-surface text-on-surface">
+
+<!-- ============ GLOBAL FIXED HEADER ============ -->
+<header id="globalHeader" class="fixed top-0 left-0 right-0 z-40 h-16 md:h-28 w-full flex items-center justify-between px-4 md:px-14 bg-white border-b border-outline-variant/40 select-none shadow-sm" style="display:none;">
+  <div class="flex items-center gap-2.5 md:gap-5">
+    <img src="https://mcreative.my/storage/logos/1785817389_logo_UPA%20LOGO%20MEDSOS%20(1).png" alt="Logo UPA Bahasa" class="logo-header flex-shrink-0">
+    <div class="flex flex-col justify-center leading-tight">
+      <span class="font-black text-primary text-sm md:text-3xl tracking-tight">UPA BAHASA</span>
+      <span class="text-on-surface-variant text-[10px] md:text-base font-semibold mt-0.5">Universitas Siliwangi</span>
+    </div>
+  </div>
+  <div class="text-right text-primary leading-none">
+    <div class="font-extrabold text-sm md:text-3xl tracking-tight mb-0.5 md:mb-1" id="mainClock">--.--</div>
+    <div class="text-[9px] md:text-sm text-on-surface-variant font-medium" id="mainDate">-</div>
+  </div>
+</header>
+
+<!-- ============ IDLE SCREEN ============ -->
+<div id="idleScreen" class="screen flex-col" onclick="goToSelect()" style="cursor:pointer;">
+  <div id="idleBgWrap" class="absolute inset-0"></div>
+  <div class="idle-overlay"></div>
+  <canvas id="particlesCanvas"></canvas>
+
+  <div class="relative z-10 w-full h-full flex flex-col justify-center items-center text-center px-8 select-none">
+    <div class="h-28 md:h-40 flex items-center justify-center">
+      <h1 id="idleGreetingText" class="fade-blur-anim state-visible text-white font-extrabold leading-tight text-6xl sm:text-7xl md:text-9xl drop-shadow-md">
+        Selamat Datang
+      </h1>
+    </div>
+
+    <div class="h-12 md:h-16 flex items-center justify-center mt-2 mb-8">
+      <p id="idleSubText" class="fade-blur-anim state-visible text-white/95 text-xl sm:text-2xl md:text-3xl font-semibold drop-shadow-sm">
+        di UPA Bahasa Universitas Siliwangi
+      </p>
+    </div>
+
+    <div class="inline-flex items-center gap-2 text-white/90 text-xl md:text-2xl font-medium animate-pulse">
+      <span class="material-symbols-outlined text-2xl md:text-3xl text-accent">ads_click</span>
+      <span>Klik untuk memulai</span>
+    </div>
+  </div>
+
+  <div class="absolute bottom-8 right-10 z-10 text-right text-white select-none">
+    <div class="text-4xl md:text-5xl font-bold tracking-tight" id="idleClock">--.--</div>
+    <div class="text-sm md:text-base opacity-80 mt-0.5" id="idleDate">-</div>
+  </div>
+  
+  <div class="absolute bottom-8 left-10 z-10 select-none">
+    <img src="https://mcreative.my/storage/logos/1785817389_logo_UPA%20LOGO%20MEDSOS%20(1).png" alt="Logo UPA Bahasa" class="logo-idle">
+  </div>
+</div>
+
+<!-- ============ SELECT SCREEN ============ -->
+<div id="selectScreen" class="screen flex-col justify-between w-full h-full pt-16 md:pt-28 pb-11 md:pb-16 relative bg-surface">
+  <main class="relative z-10 flex-1 flex flex-col items-center justify-start md:justify-center px-4 md:px-12 py-3 md:py-4 gap-4 md:gap-8 w-full">
+    <div class="text-center max-w-2xl select-none">
+      <h1 class="text-xl md:text-5xl font-black text-primary mb-1 md:mb-2 tracking-tight">Silakan Pilih Layanan</h1>
+      <p class="text-on-surface-variant text-xs md:text-lg font-medium">Pilih salah satu menu layanan di bawah ini untuk mengambil antrean</p>
+    </div>
+    
+    <div id="cardGrid" class="grid grid-cols-1 md:grid-cols-6 gap-3.5 md:gap-7 max-w-6xl w-full mx-auto"></div>
+  </main>
+</div>
+
+<!-- ============ FORM SCREEN ============ -->
+<div id="formScreen" class="screen flex-col justify-between w-full h-full pt-16 md:pt-28 pb-11 md:pb-16 relative bg-surface">
+  <main class="relative z-10 flex-1 flex items-center justify-center px-4 md:px-10 py-3 md:py-4 w-full">
+    <div class="w-full max-w-4xl glass-card rounded-2xl md:rounded-3xl border border-slate-200 overflow-hidden grid grid-cols-1 md:grid-cols-5 my-auto">
+      
+      <div class="md:col-span-2 bg-primary p-5 md:p-10 text-on-primary flex flex-col justify-between relative overflow-hidden">
+        <div class="relative z-10">
+          <span class="inline-block text-xs md:text-sm uppercase tracking-wider font-bold bg-white/20 px-3.5 py-1 md:py-1.5 rounded-full mb-2 md:mb-5" id="formChip">Layanan</span>
+          <h2 class="text-lg md:text-3xl font-extrabold leading-tight mb-1 md:mb-2">Formulir Layanan</h2>
+          <p class="text-white/85 text-xs md:text-sm leading-relaxed">Lengkapi identitas Anda untuk mencetak nomor antrean.</p>
+        </div>
+
+        <div class="relative z-10 space-y-2 md:space-y-3 pt-4 md:pt-6 border-t border-white/15 mt-3 md:mt-0">
+          <div class="flex items-start gap-2 text-xs md:text-sm text-white/90">
+            <span class="material-symbols-outlined text-base md:text-xl text-accent flex-shrink-0">check_circle</span>
+            <span>Nama sesuai identitas resmi (KTM / KTP).</span>
+          </div>
+          <div class="flex items-start gap-2 text-xs md:text-sm text-white/90">
+            <span class="material-symbols-outlined text-base md:text-xl text-accent flex-shrink-0">check_circle</span>
+            <span>Nomor WA aktif untuk konfirmasi & notifikasi.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="md:col-span-3 p-5 md:p-10 flex flex-col justify-center space-y-3.5 md:space-y-5 bg-white">
+        <div class="space-y-1">
+          <label class="flex items-center gap-1.5 text-xs md:text-sm font-bold uppercase tracking-wider text-on-surface-variant">
+            <span class="material-symbols-outlined text-base md:text-xl text-primary">person</span> Nama Lengkap
+          </label>
+          <input id="namaLengkap" type="text" placeholder="Sesuai KTM / KTP"
+            class="touch-input w-full px-3.5 md:px-4 text-sm md:text-base rounded-xl md:rounded-2xl border border-outline-variant bg-white focus:border-primary outline-none uppercase font-medium">
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 md:gap-4">
+          <div class="space-y-1">
+            <label class="flex items-center gap-1.5 text-xs md:text-sm font-bold uppercase tracking-wider text-on-surface-variant">
+              <span class="material-symbols-outlined text-base md:text-xl text-primary">badge</span> NPM
+            </label>
+            <input id="npm" type="text" inputmode="numeric" placeholder="Contoh: 232171069"
+              class="touch-input w-full px-3.5 md:px-4 text-sm md:text-base rounded-xl md:rounded-2xl border border-outline-variant bg-white focus:border-primary outline-none font-medium">
+          </div>
+
+          <div class="space-y-1">
+            <label class="flex items-center gap-1.5 text-xs md:text-sm font-bold uppercase tracking-wider text-on-surface-variant">
+              <span class="material-symbols-outlined text-base md:text-xl text-primary">phone_iphone</span> No WhatsApp
+            </label>
+            <input id="noWa" type="tel" inputmode="numeric" placeholder="Contoh: 08123456789"
+              class="touch-input w-full px-3.5 md:px-4 text-sm md:text-base rounded-xl md:rounded-2xl border border-outline-variant bg-white focus:border-primary outline-none font-medium">
+          </div>
+        </div>
+
+        <div id="fakultasWrap" class="space-y-1" style="display:none;">
+          <label class="flex items-center gap-1.5 text-xs md:text-sm font-bold uppercase tracking-wider text-on-surface-variant">
+            <span class="material-symbols-outlined text-base md:text-xl text-primary">school</span> Fakultas
+          </label>
+          <select id="fakultas"
+            class="touch-input w-full px-3.5 md:px-4 text-sm md:text-base rounded-xl md:rounded-2xl border border-outline-variant bg-white focus:border-primary outline-none font-medium">
+            <option value="">-- Pilih Fakultas --</option>
+            <option value="Keguruan dan Ilmu Pendidikan">Keguruan dan Ilmu Pendidikan</option>
+            <option value="Ekonomi dan Bisnis">Ekonomi dan Bisnis</option>
+            <option value="Pertanian">Pertanian</option>
+            <option value="Teknik">Teknik</option>
+            <option value="Agama Islam">Agama Islam</option>
+            <option value="Ilmu Kesehatan">Ilmu Kesehatan</option>
+            <option value="Ilmu Sosial dan Ilmu Politik">Ilmu Sosial dan Ilmu Politik</option>
+            <option value="Program Pascasarjana">Program Pascasarjana</option>
+          </select>
+        </div>
+
+        <div id="pelatihanWrap" class="grid grid-cols-1 md:grid-cols-2 gap-3.5 md:gap-4" style="display:none;">
+          <div class="space-y-1">
+            <label class="flex items-center gap-1.5 text-xs md:text-sm font-bold uppercase tracking-wider text-on-surface-variant">
+              <span class="material-symbols-outlined text-base md:text-xl text-primary">translate</span> Pelatihan Bahasa
+            </label>
+            <select id="bahasaPelatihan"
+              class="touch-input w-full px-3.5 md:px-4 text-sm md:text-base rounded-xl border border-outline-variant bg-white focus:border-primary outline-none font-medium">
+              <option value="">-- Pilih Bahasa --</option>
+              <option value="Inggris">Inggris</option>
+              <option value="Jerman">Jerman</option>
+              <option value="Jepang">Jepang</option>
+              <option value="Arab">Arab</option>
+            </select>
+          </div>
+
+          <div class="space-y-1">
+            <label class="flex items-center gap-1.5 text-xs md:text-sm font-bold uppercase tracking-wider text-on-surface-variant">
+              <span class="material-symbols-outlined text-base md:text-xl text-primary">workspace_premium</span> Nama Pelatihan
+            </label>
+            <input id="namaPelatihan" type="text" placeholder="Contoh: Basic TOEFL Course"
+              class="touch-input w-full px-3.5 md:px-4 text-sm md:text-base rounded-xl md:rounded-2xl border border-outline-variant bg-white focus:border-primary outline-none font-medium">
+          </div>
+        </div>
+
+        <div id="dateGridWrap" class="grid grid-cols-1 md:grid-cols-2 gap-3.5 md:gap-4" style="display:none;">
+          <div id="tglLahirWrap" class="space-y-1" style="display:none;">
+            <label class="flex items-center gap-1.5 text-xs md:text-sm font-bold uppercase tracking-wider text-on-surface-variant">
+              <span class="material-symbols-outlined text-base md:text-xl text-primary">calendar_month</span> Tanggal Lahir
+            </label>
+            <input id="tglLahir" type="date"
+              class="touch-input w-full px-3.5 md:px-4 text-sm md:text-base rounded-xl md:rounded-2xl border border-outline-variant bg-white focus:border-primary outline-none font-medium">
+          </div>
+
+          <div id="tglTestWrap" class="space-y-1" style="display:none;">
+            <label class="flex items-center gap-1.5 text-xs md:text-sm font-bold uppercase tracking-wider text-on-surface-variant">
+              <span class="material-symbols-outlined text-base md:text-xl text-primary">event_available</span> Tanggal Test
+            </label>
+            <input id="tglTest" type="date"
+              class="touch-input w-full px-3.5 md:px-4 text-sm md:text-base rounded-xl md:rounded-2xl border border-outline-variant bg-white focus:border-primary outline-none font-medium">
+          </div>
+        </div>
+
+        <div id="keperluanManualWrap" class="space-y-1" style="display:none;">
+          <label class="flex items-center gap-1.5 text-xs md:text-sm font-bold uppercase tracking-wider text-on-surface-variant">
+            <span class="material-symbols-outlined text-base md:text-xl text-primary">edit_note</span> Keperluan
+          </label>
+          <textarea id="keperluanManual" rows="3" placeholder="Tuliskan rincian keperluan Anda secara singkat..."
+            class="w-full p-3.5 md:p-4 text-sm md:text-base rounded-xl md:rounded-2xl border border-outline-variant bg-white focus:border-primary outline-none resize-none font-medium"></textarea>
+        </div>
+
+        <p id="errorMsg" class="text-error text-xs md:text-sm font-bold" style="display:none;"></p>
+
+        <!-- Tombol Aksi -->
+        <div class="flex items-center gap-2.5 sm:gap-3 md:gap-4 pt-2 md:pt-3">
+          <button type="button" onclick="goToSelect()" title="Kembali"
+            class="flex-shrink-0 w-12 sm:w-auto h-12 sm:h-12 md:h-14 px-0 sm:px-5 flex items-center justify-center gap-1.5 border-2 border-primary text-primary font-bold rounded-xl md:rounded-2xl active:scale-95 transition-transform text-xs sm:text-sm md:text-base hover:bg-primary/5">
+            <span class="material-symbols-outlined text-xl sm:text-xl md:text-2xl">arrow_back</span>
+            <span class="hidden sm:inline">Kembali</span>
+          </button>
+          <button type="button" id="submitBtn" onclick="submitForm()"
+            class="flex-1 h-12 sm:h-12 md:h-14 px-4 flex items-center justify-center gap-1.5 sm:gap-2 bg-primary text-on-primary font-bold rounded-xl md:rounded-2xl shadow-md active:scale-95 transition-transform text-xs sm:text-sm md:text-base hover:bg-primary-container">
+            <span class="material-symbols-outlined text-lg sm:text-xl md:text-2xl" style="font-variation-settings:'FILL' 1;">send</span>
+            <span>Kirim Data</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- ============ POP-UP LOADING MODAL ============ -->
+<div id="loadingModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 select-none" style="display:none;">
+  <div class="bg-white rounded-3xl p-8 max-w-sm w-11/12 flex flex-col items-center text-center shadow-2xl">
+    <div class="relative w-16 h-16 md:w-20 md:h-20 flex items-center justify-center mb-4 md:mb-5">
+      <div class="absolute inset-0 rounded-full border-4 border-slate-200 border-t-primary animate-spin"></div>
+      <span class="material-symbols-outlined text-2xl md:text-3xl text-primary animate-pulse" style="font-variation-settings:'FILL' 1;">cloud_sync</span>
+    </div>
+    <h3 class="text-lg md:text-xl font-extrabold text-primary mb-1">Sedang Menyimpan Data</h3>
+    <p class="text-on-surface-variant text-[11px] md:text-sm leading-relaxed mb-4">Mohon tunggu sebentar, antrean Anda sedang diproses...</p>
+    <div class="flex items-center gap-2">
+      <div class="w-2 h-2 md:w-2.5 md:h-2.5 rounded-full bg-primary animate-bounce [animation-delay:-0.3s]"></div>
+      <div class="w-2 h-2 md:w-2.5 md:h-2.5 rounded-full bg-accent animate-bounce [animation-delay:-0.15s]"></div>
+      <div class="w-2 h-2 md:w-2.5 md:h-2.5 rounded-full bg-primary animate-bounce"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CONFIRM SCREEN ============ -->
+<div id="confirmScreen" class="screen flex-col items-center justify-center bg-primary text-on-primary text-center px-4 md:px-6 relative overflow-hidden">
+  <div class="relative z-10 flex flex-col items-center select-none max-w-xl my-auto">
+    <div class="w-16 h-16 md:w-28 md:h-28 rounded-full bg-white/15 flex items-center justify-center mb-3 md:mb-8 shadow-md">
+      <span class="material-symbols-outlined text-4xl md:text-7xl" style="font-variation-settings:'FILL' 1;">check_circle</span>
+    </div>
+    <h2 class="text-xl md:text-4xl font-extrabold mb-1.5 md:mb-2">Terima Kasih, <span id="confirmNama"></span></h2>
+    <p class="opacity-90 text-sm md:text-xl mb-1 md:mb-2">Telah mengunjungi Layanan UPA Bahasa UNSIL</p>
+    <p class="text-accent font-bold text-xs md:text-xl mb-4 md:mb-6">Mohon ditunggu, nama Anda akan dipanggil oleh petugas pelayanan</p>
+    <div class="loading-bar-track"><div class="loading-bar-fill" id="loadingBarFill"></div></div>
+    <p class="text-[10px] md:text-sm opacity-60 mt-3 md:mt-5">Mengembalikan ke menu pilihan layanan...</p>
+  </div>
+</div>
+
+<!-- ============ GLOBAL FIXED FOOTER ============ -->
+<footer id="globalFooter" class="fixed bottom-0 left-0 right-0 z-40 h-11 md:h-16 flex items-center bg-primary text-white overflow-hidden select-none border-t border-white/15 shadow-lg" style="display:none;">
+  <div class="relative z-20 flex items-center h-full pl-3 md:pl-8 pr-2.5 md:pr-4 flex-shrink-0">
+    <div class="badge-glow flex items-center gap-1 md:gap-2 px-2.5 md:px-4 py-0.5 md:py-1.5 rounded-full text-slate-950 font-black tracking-widest text-[10px] md:text-sm uppercase">
+      <span class="material-symbols-outlined text-base md:text-2xl leading-none" style="font-variation-settings: 'FILL' 1, 'wght' 700;">campaign</span>
+      <span>INFO</span>
+    </div>
+  </div>
+
+  <div class="marquee-wrapper flex-1">
+    <div class="marquee-group flex items-center gap-6 md:gap-12 text-xs md:text-base font-medium pr-6 md:pr-12">
+      <span>📢 <strong>Pengumuman:</strong> Rilis Jadwal Ujian TELP dibuka setiap hari kerja pukul <strong class="text-accent">08.00 WIB</strong> & <strong class="text-accent">12.00 WIB</strong> (Sesi Offline) dan pukul <strong class="text-accent">19.00 WIB</strong> (Sesi Online / Kondisional).</span>
+      <span class="opacity-40">|</span>
+      <span>📞 <strong>Kontak Layanan:</strong> (+62) 822-1863-4590 • ✉️ languagecenter@unsil.ac.id • 🌐 upabahasa.unsil.ac.id</span>
+      <span class="opacity-40">|</span>
+    </div>
+
+    <div class="marquee-group flex items-center gap-6 md:gap-12 text-xs md:text-base font-medium pr-6 md:pr-12" aria-hidden="true">
+      <span>📢 <strong>Pengumuman:</strong> Rilis Jadwal Ujian TELP dibuka setiap hari kerja pukul <strong class="text-accent">08.00 WIB</strong> & <strong class="text-accent">12.00 WIB</strong> (Sesi Offline) dan pukul <strong class="text-accent">19.00 WIB</strong> (Sesi Online / Kondisional).</span>
+      <span class="opacity-40">|</span>
+      <span>📞 <strong>Kontak Layanan:</strong> (+62) 822-1863-4590 • ✉️ languagecenter@unsil.ac.id • 🌐 upabahasa.unsil.ac.id</span>
+      <span class="opacity-40">|</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+// URL Web App Apps Script Hasil Deploy Terbaru
+const scriptURL = 'https://script.google.com/macros/s/AKfycbyLHpuIbdofh7gWEWTjaJr7HwIazcZPoJWCG_wTLHBqaFKqVmAFIU75SYeM_khSSESN/exec';
+
+function checkIsMobile() {
+  const urlParams = new URLSearchParams(window.location.search);
+  return urlParams.get('mode') === 'mobile' || window.innerWidth < 768;
+}
+
+const GREETINGS_DATA = [
+  { text: 'Selamat Datang', sub: 'di UPA Bahasa Universitas Siliwangi', bg: 'https://asset.tribunnews.com/YQldpFvQD1ZN3-G7qUx-F6RnBoo=/1200x675/filters:upscale():quality(30):format(webp):focal(0.5x0.5:0.5x0.5)/jabar/foto/bank/originals/Universitas-Siliwangi-Unsil-Tasikmalaya-11111.jpg' },
+  { text: 'Welcome', sub: 'to Language Center Siliwangi University', bg: 'https://www.myeducationrepublic.com/wp-content/uploads/2022/09/5-Tempat-Wisata-UK.jpg.webp' },
+  { text: 'Willkommen', sub: 'im Sprachenzentrum der Siliwangi Universität', bg: 'https://ik.imagekit.io/tvlk/blog/2025/02/luas-negara-jerman-mobile.png' },
+  { text: 'ようこそ', sub: 'シリワンギ大学 言語センターへ', bg: 'https://asset.kompas.com/crops/PueF2wPPMX9oHc2kdN0FcFPykVQ=/0x0:1000x667/1200x800/data/photo/2019/03/30/4210152762.jpg' },
+  { text: 'أهلاً وسهلاً', sub: 'في مركز اللغات بجامعة سيليوانجي', bg: 'https://www.agoda.com/wp-content/uploads/2025/12/34-Saudi-Arabia.png' },
+  { text: 'Wilujeng Sumping', sub: 'di UPA Basa Universitas Siliwangi', bg: 'https://www.indonesia.travel/contentassets/856d554cd4d74d599ce8bc806dfd6c01/gedung-sate.jpeg' }
+];
+
+let currentIndex = 0;
+const greetingEl = document.getElementById('idleGreetingText');
+const subTextEl = document.getElementById('idleSubText');
+const idleBgWrap = document.getElementById('idleBgWrap');
+
+if (!checkIsMobile()) {
+  GREETINGS_DATA.forEach((item, i) => {
+    const div = document.createElement('div');
+    div.className = 'idle-bg' + (i === 0 ? ' show' : '');
+    div.style.backgroundImage = "url('" + item.bg + "')";
+    idleBgWrap.appendChild(div);
+  });
+}
+
+const bgElements = idleBgWrap.querySelectorAll('.idle-bg');
+
+setInterval(() => {
+  if (checkIsMobile()) return;
+  
+  if (greetingEl && subTextEl && document.getElementById('idleScreen').classList.contains('active')) {
+    greetingEl.classList.remove('state-visible');
+    greetingEl.classList.add('state-hidden');
+    subTextEl.classList.remove('state-visible');
+    subTextEl.classList.add('state-hidden');
+
+    setTimeout(() => {
+      const prevIndex = currentIndex;
+      currentIndex = (currentIndex + 1) % GREETINGS_DATA.length;
+
+      greetingEl.textContent = GREETINGS_DATA[currentIndex].text;
+      subTextEl.textContent = GREETINGS_DATA[currentIndex].sub;
+
+      if (bgElements[prevIndex]) bgElements[prevIndex].classList.remove('show');
+      if (bgElements[currentIndex]) bgElements[currentIndex].classList.add('show');
+
+      greetingEl.classList.remove('state-hidden');
+      greetingEl.classList.add('state-visible');
+      subTextEl.classList.remove('state-hidden');
+      subTextEl.classList.add('state-visible');
+    }, 600);
+  }
+}, 10000);
+
+const canvas = document.getElementById('particlesCanvas');
+const ctx = canvas.getContext('2d');
+let particles = [];
+let animFrameId = null;
+
+function resizeCanvas() {
+  if (checkIsMobile()) return;
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+
+class Particle {
+  constructor() { this.reset(true); }
+  reset(initial = false) {
+    this.x = Math.random() * canvas.width;
+    this.y = initial ? Math.random() * canvas.height : canvas.height + 10;
+    this.radius = Math.random() * 2 + 0.8;
+    this.speedY = Math.random() * 0.4 + 0.2;
+    this.speedX = (Math.random() - 0.5) * 0.2;
+    this.opacity = Math.random() * 0.5 + 0.2;
+  }
+  update() {
+    this.y -= this.speedY;
+    this.x += this.speedX;
+    if (this.y < -10 || this.x < -10 || this.x > canvas.width + 10) this.reset(false);
+  }
+  draw() {
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity})`;
+    ctx.fill();
+  }
+}
+
+function initParticles() {
+  if (checkIsMobile()) return;
+  resizeCanvas();
+  particles = [];
+  const particleCount = Math.min(30, Math.floor(window.innerWidth / 40));
+  for (let i = 0; i < particleCount; i++) {
+    particles.push(new Particle());
+  }
+}
+
+function animateParticles() {
+  if (checkIsMobile()) return;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (document.getElementById('idleScreen').classList.contains('active')) {
+    particles.forEach(p => { p.update(); p.draw(); });
+  }
+  animFrameId = requestAnimationFrame(animateParticles);
+}
+
+if (!checkIsMobile()) {
+  initParticles();
+  animateParticles();
+}
+
+const SERVICES = [
+  { id:'buat_akun', label:'Pembuatan Akun TELP', desc:'Pendaftaran akun baru tes', icon:'person_add', needTglLahir:false, needTglTest:false, needFakultas:false, needPelatihan:false, manualKeperluan:false },
+  { id:'kendala_akun', label:'Kendala Akun TELP', desc:'Reset password / verifikasi data', icon:'lock_reset', needTglLahir:false, needTglTest:false, needFakultas:false, needPelatihan:false, manualKeperluan:false },
+  { id:'lainnya', label:'Keperluan Lainnya', desc:'Informasi & konsultasi lainnya', icon:'support_agent', needTglLahir:false, needTglTest:false, needFakultas:false, needPelatihan:false, manualKeperluan:true },
+  { id:'sertif_pelatihan', label:'Cetak Sertifikat Pelatihan', desc:'Klaim sertifikat program kursus', icon:'military_tech', needTglLahir:true, needTglTest:false, needFakultas:true, needPelatihan:true, manualKeperluan:false },
+  { id:'sertif_telp', label:'Cetak Sertifikat TELP', desc:'Pengambilan Sertifikat Hasil Ujian', icon:'workspace_premium', needTglLahir:true, needTglTest:true, needFakultas:true, needPelatihan:false, manualKeperluan:false }
+];
+
+const IDLE_TIMEOUT_MS = 45000;
+const CONFIRM_DURATION_MS = 5000;
+
+let selectedService = null;
+let idleTimer = null;
+
+function initApp() {
+  if (checkIsMobile()) {
+    showScreen('selectScreen');
+  } else {
+    showScreen('idleScreen');
+  }
+}
+
+function updateClocks(){
+  const now = new Date();
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const time = `${hours}.${minutes}`;
+  const date = now.toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  
+  const mainClockEl = document.getElementById('mainClock');
+  const mainDateEl = document.getElementById('mainDate');
+  const idleClockEl = document.getElementById('idleClock');
+  const idleDateEl = document.getElementById('idleDate');
+
+  if (mainClockEl) mainClockEl.textContent = time;
+  if (mainDateEl) mainDateEl.textContent = date;
+  if (idleClockEl) idleClockEl.textContent = time;
+  if (idleDateEl) idleDateEl.textContent = date;
+}
+
+updateClocks();
+const clockInterval = checkIsMobile() ? 10000 : 1000;
+setInterval(updateClocks, clockInterval);
+
+const cardGrid = document.getElementById('cardGrid');
+SERVICES.forEach((s, idx) => {
+  const card = document.createElement('button');
+  
+  let gridSpan = 'md:col-span-2';
+  if (idx === 3) { gridSpan = 'md:col-span-2 md:col-start-2'; } 
+  else if (idx === 4) { gridSpan = 'md:col-span-2'; }
+  
+  card.className = `service-card ${gridSpan} p-3.5 sm:p-4 md:py-9 md:px-7 rounded-2xl md:rounded-3xl flex flex-row md:flex-col items-center justify-start md:justify-center text-left md:text-center gap-3.5 md:gap-5 cursor-pointer group min-h-[76px] md:min-h-[250px] w-full`;
+  card.onclick = () => selectService(s);
+
+  const descHtml = s.desc ? `<p class="text-on-surface-variant/80 text-[11px] md:text-sm font-normal mt-0.5 md:mt-2 leading-snug">${s.desc}</p>` : '';
+
+  card.innerHTML = `
+    <div class="card-icon-wrap w-11 h-11 sm:w-12 sm:h-12 md:w-20 md:h-20 rounded-xl md:rounded-3xl flex items-center justify-center text-white flex-shrink-0">
+      <span class="material-symbols-outlined text-2xl md:text-[42px]" style="font-variation-settings:'FILL' 1;">${s.icon}</span>
+    </div>
+    <div class="flex-1 min-w-0 flex flex-col justify-center">
+      <h3 class="font-extrabold text-primary text-sm sm:text-base md:text-xl leading-tight md:leading-snug group-hover:text-primary-container transition-colors">${s.label}</h3>
+      ${descHtml}
+    </div>
+  `;
+  cardGrid.appendChild(card);
+});
+
+function showScreen(id){
+  if (checkIsMobile() && id === 'idleScreen') id = 'selectScreen';
+
+  document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+  const target = document.getElementById(id);
+  if (target) target.classList.add('active');
+
+  const gHeader = document.getElementById('globalHeader');
+  const gFooter = document.getElementById('globalFooter');
+
+  if (id === 'selectScreen' || id === 'formScreen') {
+    gHeader.style.display = 'flex';
+    gFooter.style.display = 'flex';
+  } else {
+    gHeader.style.display = 'none';
+    gFooter.style.display = 'none';
+  }
+
+  if (!checkIsMobile()) resetIdleTimer();
+}
+
+function goToIdle(){ 
+  if (checkIsMobile()) showScreen('selectScreen');
+  else showScreen('idleScreen');
+}
+
+function goToSelect(e){ 
+  if (e) e.stopPropagation(); 
+  showScreen('selectScreen'); 
+}
+
+function selectService(service){
+  selectedService = service;
+  document.getElementById('formChip').textContent = service.label;
+  document.getElementById('namaLengkap').value = '';
+  document.getElementById('npm').value = '';
+  document.getElementById('noWa').value = '';
+  document.getElementById('fakultas').value = '';
+  document.getElementById('bahasaPelatihan').value = '';
+  document.getElementById('namaPelatihan').value = '';
+  document.getElementById('tglLahir').value = '';
+  document.getElementById('tglTest').value = '';
+  document.getElementById('keperluanManual').value = '';
+  document.getElementById('errorMsg').style.display = 'none';
+  
+  document.getElementById('fakultasWrap').style.display = service.needFakultas ? 'block' : 'none';
+  document.getElementById('pelatihanWrap').style.display = service.needPelatihan ? 'grid' : 'none';
+
+  const dateGrid = document.getElementById('dateGridWrap');
+  const tglLahirWrap = document.getElementById('tglLahirWrap');
+  const tglTestWrap = document.getElementById('tglTestWrap');
+
+  if (service.needTglLahir || service.needTglTest) {
+    dateGrid.style.display = 'grid';
+    tglLahirWrap.style.display = service.needTglLahir ? 'block' : 'none';
+    tglTestWrap.style.display = service.needTglTest ? 'block' : 'none';
+    dateGrid.className = (service.needTglLahir && !service.needTglTest) ? 'grid grid-cols-1 gap-3.5 md:gap-4' : 'grid grid-cols-1 md:grid-cols-2 gap-3.5 md:gap-4';
+  } else {
+    dateGrid.style.display = 'none';
+  }
+  
+  document.getElementById('keperluanManualWrap').style.display = service.manualKeperluan ? 'block' : 'none';
+  
+  showScreen('formScreen');
+  
+  const formMain = document.querySelector('#formScreen main');
+  if (formMain) formMain.scrollTop = 0;
+}
+
+function submitForm(){
+  const nama = document.getElementById('namaLengkap').value.trim();
+  const npm = document.getElementById('npm').value.trim();
+  const noWa = document.getElementById('noWa').value.trim();
+  const fakultas = document.getElementById('fakultas').value;
+  const bahasaPelatihan = document.getElementById('bahasaPelatihan').value;
+  const namaPelatihan = document.getElementById('namaPelatihan').value.trim();
+  const tglLahir = document.getElementById('tglLahir').value;
+  const tglTest = document.getElementById('tglTest').value;
+  const keperluanManual = document.getElementById('keperluanManual').value.trim();
+  const errorMsg = document.getElementById('errorMsg');
+  const btn = document.getElementById('submitBtn');
+  const loadingModal = document.getElementById('loadingModal');
+
+  errorMsg.style.display = 'none';
+
+  if (!nama || !npm || !noWa) { errorMsg.textContent = 'Nama, NPM, dan No WhatsApp wajib diisi.'; errorMsg.style.display = 'block'; return; }
+  if (selectedService.needFakultas && !fakultas) { errorMsg.textContent = 'Fakultas wajib dipilih.'; errorMsg.style.display = 'block'; return; }
+  if (selectedService.needPelatihan) {
+    if (!bahasaPelatihan) { errorMsg.textContent = 'Pelatihan Bahasa wajib dipilih.'; errorMsg.style.display = 'block'; return; }
+    if (!namaPelatihan) { errorMsg.textContent = 'Nama Pelatihan wajib diisi.'; errorMsg.style.display = 'block'; return; }
+  }
+  if (selectedService.needTglLahir && !tglLahir) { errorMsg.textContent = 'Tanggal Lahir wajib diisi.'; errorMsg.style.display = 'block'; return; }
+  if (selectedService.needTglTest && !tglTest) { errorMsg.textContent = 'Tanggal Test wajib diisi.'; errorMsg.style.display = 'block'; return; }
+  if (selectedService.manualKeperluan && !keperluanManual) { errorMsg.textContent = 'Isi keperluan Anda.'; errorMsg.style.display = 'block'; return; }
+
+  const keperluan = selectedService.manualKeperluan ? keperluanManual : selectedService.label;
+  loadingModal.style.display = 'flex';
+  btn.disabled = true;
+
+  const payload = {
+    namaLengkap: nama,
+    npm: npm,
+    noWa: noWa,
+    fakultas: fakultas,
+    bahasaPelatihan: bahasaPelatihan,
+    namaPelatihan: namaPelatihan,
+    tglLahir: tglLahir,
+    tglTest: tglTest,
+    keperluan: keperluan
+  };
+
+  fetch(scriptURL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  })
+  .then(() => {
+    loadingModal.style.display = 'none';
+    btn.disabled = false;
+    showConfirm(nama);
+  })
+  .catch((err) => {
+    console.error('Submit error:', err);
+    loadingModal.style.display = 'none';
+    btn.disabled = false;
+    showConfirm(nama);
+  });
+}
+
+function showConfirm(nama){
+  document.getElementById('confirmNama').textContent = nama;
+  showScreen('confirmScreen');
+  const fill = document.getElementById('loadingBarFill');
+  fill.style.transition = 'none'; fill.style.width = '0%'; void fill.offsetWidth;
+  fill.style.transition = 'width ' + CONFIRM_DURATION_MS + 'ms linear'; fill.style.width = '100%';
+  
+  setTimeout(() => {
+    showScreen('selectScreen');
+    const selectMain = document.querySelector('#selectScreen main');
+    if (selectMain) selectMain.scrollTop = 0;
+  }, CONFIRM_DURATION_MS);
+}
+
+function resetIdleTimer(){
+  if (checkIsMobile()) return;
+  if (idleTimer) clearTimeout(idleTimer);
+  if (document.getElementById('idleScreen').classList.contains('active')) return;
+  idleTimer = setTimeout(goToIdle, IDLE_TIMEOUT_MS);
+}
+
+['click','touchstart','keydown'].forEach(evt => document.addEventListener(evt, resetIdleTimer));
+window.addEventListener('resize', () => { if (checkIsMobile() && document.getElementById('idleScreen').classList.contains('active')) showScreen('selectScreen'); });
+
+initApp();
+</script>
+</body>
+</html>
