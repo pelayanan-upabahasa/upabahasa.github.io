@@ -814,20 +814,6 @@ function resetIdleTimer(){
 ['click','touchstart','keydown'].forEach(evt => document.addEventListener(evt, resetIdleTimer));
 window.addEventListener('resize', () => { if (checkIsMobile() && document.getElementById('idleScreen').classList.contains('active')) showScreen('selectScreen'); });
 
-// --- GANTI KODE SEBELUMNYA DENGAN INI ---
-window.addEventListener('keydown', function(event) {
-  const idleScreen = document.getElementById('idleScreen');
-  
-  // Cek apakah layar idle sedang aktif
-  if (idleScreen && idleScreen.classList.contains('active')) {
-    // Deteksi Spasi atau Enter (menggunakan event.key atau event.code)
-    if (event.key === ' ' || event.key === 'Enter' || event.code === 'Space' || event.code === 'Enter') {
-      event.preventDefault(); // Mencegah layar scroll ke bawah
-      goToSelect(); 
-    }
-  }
-});
-// -----------------------------------------
 initApp();
 </script>
 </body>
